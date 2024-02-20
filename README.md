@@ -26,6 +26,7 @@ https://forum.arduino.cc/t/solved-9-bit-serial-problem/496726/5
 Officially provided by Display Vision, the manufacture. You can download the libraries and examples from here: 
 https://www.lcd-module.com/lcd-tft-code-example-programming/application-note/arduino.html
 
+
 This is the direct link for the 2x16 displays: 
 http://www.lcd-module.de/fileadmin/downloads/development%20service/Arduino/Arduino%20meets%20EA%20DOGM081%20DOGM162%20DOGM163.zip
 
