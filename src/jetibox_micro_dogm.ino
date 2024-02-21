@@ -1,9 +1,7 @@
 /* 
 
 // TODO
-// POINTER Variant - to improve memory usage. 
 // - simpleTextExtraction using pointers for direct variable manipulation instead of writing globals
-// - STILL Terst change to #define instaed of variables.
 //
 // Open Tests/Changes
 // - #define replace variables
@@ -11,7 +9,7 @@
 // - printJBText subroutine now used for init screen as well as standard screen display to save memory
 // - replaced init screen display by initializing lines prior
 // - removed struct
-// - subroutinge now returning 0 or 1. Does it make sense?
+// - subroutines now returning 0 or 1. Does it make sense?
 
 Jetibox Micro by André
 This program allows to rebuild a Jetibox with an Ardunio and external 16x2 matrix display
@@ -72,8 +70,8 @@ so I decided to not put them in.
 
 #include <Arduino.h>
 #include "dogm_7036.h"
-#include <SPI.h>              // Needed? Should be part of Arduino.h? Test without todo...
-#include <avr/interrupt.h>    // Needed? Should be part of Arduino.h? Test without todo...
+//#include <SPI.h>              // Needed? Should be part of Arduino.h? Test without todo...
+//#include <avr/interrupt.h>    // Needed? Should be part of Arduino.h? Test without todo...
 
 // pin definitions buttons and debounce config values
 #define PIN_BUTTON_RIGHT A0
@@ -88,18 +86,21 @@ so I decided to not put them in.
 // Important protocol bytes to check for
 #define SIMPLETEXT_START 0xFE
 #define SIMPLETEXT_END 0xFF
+// Init-Screen Text
+#define INITSCREEN_LINE1 "JetiBox-Micro by"
+#define INITSCREEN_LINE2 "   Andre Kuhn   "
 
 // DO NOT CHANGE BELOW
 // global variables to be defined
 volatile uint16_t JetiBoxButtons = 0x00F0;  // Byte to send to sensor/transmitter to navigate through Jetibox menu. Need to be 2 bytes to capture data bit #9 as well
 int lastpressed_buttons = 0;  // required for software debouncing
 // initiate the display lines with start screen values
-char line1[17] = "  JetiBox-Micro ";
-char line2[17] = "  by Andre Kuhn ";
+char line1[17] = INITSCREEN_LINE1;
+char line2[17] = INITSCREEN_LINE2;
 
 // declaration of required functions
 void printScreen(char *line1, char *line2);
-void simpleTextExtraction();
+int simpleTextExtraction();
 
 dogm_7036 lcd;
 
@@ -133,23 +134,18 @@ void setup() {
 
 void loop() {
   while (Serial.available() < 1) {}
-  if (Serial.read() == SIMPLETEXT_START) {      // check if simple text was sent with EX protocol.
-    simpleTextExtraction();                     // Extract ASCII text for Jetibox display - 2x 16 characters
-  }
-
-  // TODO - CHECK IF simpleTextExtraction can provide a value back to check for success. subfunction to return boolean? or is void good enough. I assume no.
-
-  // Use 20ms pause to send Jetibox buttons and display text. JetiBox Buttons need to support of
-  // simultanuously pressing buttons and long holding them (e.g. push left & right long to clear values)
-  if (strlen(line1) == 16) {                    // Check Text-Length to be sure to know the package ending was detected correctly
-    if ((JetiBoxButtons & 0x00F0) != 0x00F0) {  // If buttons pressed, send them
-      delay(1);                                 // might not be needed
-      Serial.write(JetiBoxButtons);             // Send button status if some are pressed (!= 0x00F0).
+  if (Serial.read() == SIMPLETEXT_START) {        // check if simple text was sent with EX protocol.
+    // Extract ASCII text for Jetibox display - 2x 16 characters. If correctl extracted follow-up with buttons an display
+    if (simpleTextExtraction() == 0) {
+      // Use 20ms pause to send Jetibox buttons status and display text. 
+      printScreen(line1,line2);                   // print lines to display, if full message was received
+      if ((JetiBoxButtons & 0x00F0) != 0x00F0) {  // If buttons pressed, send them
+        Serial.write(JetiBoxButtons);             // Send button status if some are pressed (!= 0x00F0).
+      }
+      else {
+        Serial.write(0x00F0);                     // Send buttons up if not pressed
+      }
     }
-    else {
-      Serial.write(0x00F0);                     // Send buttons up if not pressed
-    }
-    printScreen(line1,line2);                   // print lines to display, if full message was received
   }
 }
 
@@ -159,40 +155,39 @@ void printScreen(char *line1, char *line2) {
   lcd.string(line1);
   lcd.position(1, 2);
   lcd.string(line2);
-  return 0;
+  return;
 }
 
 // ISR(PCINT1_vect) {}
 // ISR(PCINT2_vect){}
 ISR(PCINT1_vect) {                              // Button up interrupt. They can be pressed simultaneously. Contact swinging is filtered by waiting some ms for the next button press
   if ((millis() - lastpressed_buttons) > DEBOUNCE_TIME) {
-    uint16_t tmp = PINC << 4;                   // Read pins in one shot. By connecting the buttons properly, bit shifting is the solution and IRS becomes really short.
-    JetiBoxButtons = 0x00F0 & tmp;              // make sure you dont pick up anything else than the 4 buttons.
+//    uint16_t tmp = PINC << 4;                   // Read pins in one shot. By connecting the buttons properly, bit shifting is the solution and IRS becomes really short.
+//    JetiBoxButtons = 0x00F0 & tmp;              // make sure you dont pick up anything else than the 4 buttons.
+    JetiBoxButtons = 0x00F0 & (PINC << 4);              // make sure you dont pick up anything else than the 4 buttons.
   }
   lastpressed_buttons = millis();               // debounce check timestamp setting
-  return 0;
+  return;
 }
 
 // TODO: Shall I use to move pointers and not modify global variables in sub-function?
-void simpleTextExtraction () {
+int simpleTextExtraction () {
   for (int i = 0; i < 32 ; i++) {               // read text message (32 bytes ASCII) and print each one in display 
     while (Serial.available() < 1) {}
     if (i<16) {
-      line1[i] = Serial.read() & 0xFF;          // make sure to extract ASCII characters from 9bit protocol and omit 9th bit (& 0xFF)
+      line1[i] = Serial.read() & 0xFF;          // make sure to extract ASCII characters from 9bit protocol and omit 9th bit (& 0xFF). Store in line1 char array
     }
     else {
-      line2[i-16] = Serial.read() & 0xFF;       // make sure to extract ASCII characters from 9bit protocol and omit 9th bit (& 0xFF)    
+      line2[i-16] = Serial.read() & 0xFF;       // make sure to extract ASCII characters from 9bit protocol and omit 9th bit (& 0xFF). Store in line2 char array 
     }
   }
   while (Serial.available() < 1) {} 
   if (Serial.read() != SIMPLETEXT_END) {        // if nok and end byte (0xFF) is missing, remove strings (string length = 0)
-    line1[0] = NULL;
-    line2[0] = NULL;
+//    line1[0] = NULL;
+//    line2[0] = NULL;
     return 1;
   }
   else {
-    line1[16] = NULL;                           // if ok and end byte (0xFF) was sent, set string length to 16. Not sure if required, as this byte 
-    line2[16] = NULL;                           // was set as NULL during initialization
     return 0;
   }
 }
