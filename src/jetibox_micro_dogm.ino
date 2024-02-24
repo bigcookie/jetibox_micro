@@ -2,14 +2,6 @@
 
 // TODO
 // - simpleTextExtraction using pointers for direct variable manipulation instead of writing globals
-//
-// Open Tests/Changes
-// - #define replace variables
-// - printJBText subroutine now using pointers to chars
-// - printJBText subroutine now used for init screen as well as standard screen display to save memory
-// - replaced init screen display by initializing lines prior
-// - removed struct
-// - subroutines now returning 0 or 1. Does it make sense?
 
 Jetibox Micro by André
 This program allows to rebuild a Jetibox with an Ardunio and external 16x2 matrix display
@@ -70,15 +62,13 @@ so I decided to not put them in.
 
 #include <Arduino.h>
 #include "dogm_7036.h"
-//#include <SPI.h>              // Needed? Should be part of Arduino.h? Test without todo...
-//#include <avr/interrupt.h>    // Needed? Should be part of Arduino.h? Test without todo...
 
 // pin definitions buttons and debounce config values
 #define PIN_BUTTON_RIGHT A0
 #define PIN_BUTTON_UP A1
 #define PIN_BUTTON_DOWN A2
 #define PIN_BUTTON_LEFT A3
-#define DEBOUNCE_TIME 30
+#define DEBOUNCE_TIME 20
 // pin definitions LCD - SPI (use HW SPI)
 #define LCD_PIN_SI 10
 #define LCD_PIN_RS 8
@@ -162,8 +152,6 @@ void printScreen(char *line1, char *line2) {
 // ISR(PCINT2_vect){}
 ISR(PCINT1_vect) {                              // Button up interrupt. They can be pressed simultaneously. Contact swinging is filtered by waiting some ms for the next button press
   if ((millis() - lastpressed_buttons) > DEBOUNCE_TIME) {
-//    uint16_t tmp = PINC << 4;                   // Read pins in one shot. By connecting the buttons properly, bit shifting is the solution and IRS becomes really short.
-//    JetiBoxButtons = 0x00F0 & tmp;              // make sure you dont pick up anything else than the 4 buttons.
     JetiBoxButtons = 0x00F0 & (PINC << 4);              // make sure you dont pick up anything else than the 4 buttons.
   }
   lastpressed_buttons = millis();               // debounce check timestamp setting
@@ -183,8 +171,6 @@ int simpleTextExtraction () {
   }
   while (Serial.available() < 1) {} 
   if (Serial.read() != SIMPLETEXT_END) {        // if nok and end byte (0xFF) is missing, remove strings (string length = 0)
-//    line1[0] = NULL;
-//    line2[0] = NULL;
     return 1;
   }
   else {
