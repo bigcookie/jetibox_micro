@@ -13,7 +13,7 @@ I am not associated with any of the sources I list. Just want to share the specs
 
 ## Pinning and hardware setup
 Take a look at the Arduino sketch for now. All is described in the first comments. A high-level block schematic is this one:
-![High-level block-schematic](images/jetibox-micro_pinout)
+![High-level block-schematic](images/jetibox-micro_pinout.png)
 
 ## Hardware and library sources
 I am not a skilled developer, so the code is suboptimal. The following are the sources I used for this project.
