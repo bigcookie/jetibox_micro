@@ -53,12 +53,12 @@ I noticed one downside on this approach: if you do simultaneous button presses, 
 # Pictures
 My board with connectors:
 
-![Board with connectors]("images/JetiBox-Micro 0 - Connectors.jpg")
+![Board with connectors](images/JetiBox-Micro%200%20-%20Connectors.jpg")
 
 Board with connected display (inactive):
 
-![Board with display connected]("images/JetiBox-Micro 1  - Display.jpg")
+![Board with display connected](images/JetiBox-Micro%201%20%20-%20Display.jpg)
 
 Board with connected MVario sensor:
 
-![Board with display connected]("images/JetiBox-Micro 2 - Connected MVario.jpg")
+![Board with display connected](images/JetiBox-Micro%202%20-%20Connected%20MVario.jpg)
