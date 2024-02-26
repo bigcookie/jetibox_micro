@@ -13,6 +13,7 @@ I am not associated with any of the sources I list. Just want to share the specs
 
 ## Pinning and hardware setup
 Take a look at the Arduino sketch for now. All is described in the first comments. A high-level block schematic is this one:
+
 ![High-level block-schematic](images/jetibox-micro_pinout.png)
 
 ## Hardware and library sources
@@ -48,3 +49,16 @@ The message is display in the display after correct detection.
 After message is received, the sensor/remote control module pauses for 20ms and reconfigures their UART TX line to RX and is able to receive data. This is, when you can send button interactions. buttons allowed are "up", "down", "left", "right". They can be pushed simultaneously and can be pressed for a short or long time. Button interactions are required to configure e.g. sensors/remote control modules using their JetiBox menu.
 While the UART is listening on the telemetry protocol is done via hardware UART, the display is using the hardware SPI interface and the buttons are handled with a separate interrupt service routine on PORTC. The hardware setup is done in a way, that Bit 1-4 of PORTC are representing the buttons states in the required order of the Jeti Telemtry protocol. As such, you just need to shift the bits 4 times to the left, and you already got the required format to send the buttons states back to the sensor/remote control.
 I noticed one downside on this approach: if you do simultaneous button presses, they are not detected if both buttons are pressed within the software debounce time (20ms). 
+
+# Pictures
+My board with connectors:
+
+![Board with connectors](images/JetiBox-Micro 0 - Connectors.jpg)
+
+Board with connected display (inactive):
+
+![Board with display connected](images/JetiBox-Micro 1  - Display.jpg)
+
+Board with connected MVario sensor:
+
+![Board with display connected](images/JetiBox-Micro 2 - Connected MVario.jpg)
