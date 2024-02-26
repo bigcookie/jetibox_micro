@@ -1,8 +1,4 @@
 /* 
-
-// TODO
-// - simpleTextExtraction using pointers for direct variable manipulation instead of writing globals
-
 Jetibox Micro by André
 This program allows to rebuild a Jetibox with an Ardunio and external 16x2 matrix display
 Intention is to built a smaller version than Jetibox Mini, allowing to remove teh analog voltage meter
@@ -21,9 +17,9 @@ messages:
 -- text message, followed by simple text
 - simple text message
 We are interested in simple text only. To identify the messages, there are clear message separators
-defined. To fully identify them, the evaluation of the 9th bit in Jeti UART configuration must be used.
-Jeti uses 1 start bit, 9 data bits, odd parity and 2 stop bits (Serial_9O2). This requires to use a
-UART library which supports 9bit.
+defined (Separateor Byte 0xFE, end byte 0xFF). To fully identify them, the evaluation of the 9th bit 
+in Jeti UART configuration must be used. Jeti uses 1 start bit, 9 data bits, odd parity and 2 stop bits 
+(Serial_9O2). This requires to use a UART library which supports 9bit.
 
 Hardware notes:
 You need to connect also 4 buttons which will allow you to navigate in Jeti menus. The debouncing is done in software.
@@ -46,7 +42,7 @@ Pin usage:
   LCD CS:        Pin 10   \
   LCD CLK:       Pin 13    \
   LCD SI:        Pin 11     \ 6-pin connector to LCD
-  LCD RS:        Pin  9     /
+  LCD RS:        Pin  8     /
   LCD Gnd:       Gnd       /
   LCD VCC:       Vcc      / 
 
@@ -152,13 +148,12 @@ void printScreen(char *line1, char *line2) {
 // ISR(PCINT2_vect){}
 ISR(PCINT1_vect) {                              // Button up interrupt. They can be pressed simultaneously. Contact swinging is filtered by waiting some ms for the next button press
   if ((millis() - lastpressed_buttons) > DEBOUNCE_TIME) {
-    JetiBoxButtons = 0x00F0 & (PINC << 4);              // make sure you dont pick up anything else than the 4 buttons.
+    JetiBoxButtons = 0x00F0 & (PINC << 4);      // make sure you dont pick up anything else than the 4 buttons and move the bits to the correct location for Jeti protocol
   }
   lastpressed_buttons = millis();               // debounce check timestamp setting
   return;
 }
 
-// TODO: Shall I use to move pointers and not modify global variables in sub-function?
 int simpleTextExtraction () {
   for (int i = 0; i < 32 ; i++) {               // read text message (32 bytes ASCII) and print each one in display 
     while (Serial.available() < 1) {}
@@ -171,9 +166,9 @@ int simpleTextExtraction () {
   }
   while (Serial.available() < 1) {} 
   if (Serial.read() != SIMPLETEXT_END) {        // if nok and end byte (0xFF) is missing, remove strings (string length = 0)
-    return 1;
+    return 1;                                   // return 1 if nok
   }
   else {
-    return 0;
+    return 0;                                   // return 0 if ok
   }
 }
