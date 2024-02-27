@@ -34,11 +34,12 @@ Pin usage:
   Usage.         Atmega Mini Pro 328p board
   -----------------------------------------
   Button right:  Pin A0   \
-  Button uo:     Pin A1    \
+  Button up:     Pin A1    \
   Button down:   Pin A2     | 5-pin connector to buttons
   Button left:   Pin A3.   /
   Button Gnd:    Gnd      /
 
+  DOGM162L-A display:
   LCD CS:        Pin 10   \
   LCD CLK:       Pin 13    \
   LCD SI:        Pin 11     \ 6-pin connector to LCD
@@ -52,12 +53,26 @@ Pin usage:
 
   HW TXD:        RXD via 2,2kOhm resistor
 
+  Alternative 2x16 display:
+  LCD RS:        Pin  7
+  LCD EN:        Pin  8
+  LCD D4:        Pin 10
+  LCD D5:        Pin 11
+  LCD D6:        Pin 12
+  LCD D7:        Pin 13
+  LCD RW:        Gnd
+  LCD VSS:       Gnd
+  LCD Vdd:       Vcc
+  LCD  A:        Vcc via 220 Ohm
+  LCD  K:        Gnd
+  LCD V0:        0-5V for contrast
+
 Additional protection resistors can be added between display and Microcontroller. For me system ran stable,
 so I decided to not put them in.
 */
 
-#include <Arduino.h>
-#include "dogm_7036.h"
+// Display selection
+//#define LCD_2x16     // Enable if you use a standard 2x16 display, otherwise DOGM is being used.
 
 // pin definitions buttons and debounce config values
 #define PIN_BUTTON_RIGHT A0
@@ -65,9 +80,7 @@ so I decided to not put them in.
 #define PIN_BUTTON_DOWN A2
 #define PIN_BUTTON_LEFT A3
 #define DEBOUNCE_TIME 20
-// pin definitions LCD - SPI (use HW SPI)
-#define LCD_PIN_SI 10
-#define LCD_PIN_RS 8
+// Startup screen configuration
 #define STARTUPSCREEN_SHOW 2000
 // Important protocol bytes to check for
 #define SIMPLETEXT_START 0xFE
@@ -75,6 +88,30 @@ so I decided to not put them in.
 // Init-Screen Text
 #define INITSCREEN_LINE1 "JetiBox-Micro by"
 #define INITSCREEN_LINE2 "   Andre Kuhn   "
+
+#ifdef LCD_2x16
+// pin definitions 2x16 LCD - 4-Bite mode
+  #define LCD_PIN_RS 7
+  #define LCD_PIN_EN 8
+  #define LCD_PIN_D4 10
+  #define LCD_PIN_D5 11
+  #define LCD_PIN_D6 12
+  #define LCD_PIN_D7 13
+#else
+// pin definitions DOGM LCD - SPI (use with HW SPI, which is initialized in DOGM library)
+  #define LCD_PIN_SI 10
+  #define LCD_PIN_RS 8
+#endif
+
+#include <Arduino.h>
+
+#ifdef LCD_2x16
+  #include <LiquidCrystal.h>
+#else
+  #include "dogm_7036.h"
+#endif
+
+
 
 // DO NOT CHANGE BELOW
 // global variables to be defined
@@ -88,7 +125,13 @@ char line2[17] = INITSCREEN_LINE2;
 void printScreen(char *line1, char *line2);
 int simpleTextExtraction();
 
-dogm_7036 lcd;
+// Initialization of LCD
+#ifdef LCD_2x16
+  LiquidCrystal lcd(LCD_PIN_RS, LCD_PIN_EN, LCD_PIN_D4, LCD_PIN_D5, LCD_PIN_D6, LCD_PIN_D7);
+#else
+  dogm_7036 lcd;
+#endif
+
 
 void setup() {
   // configure pins
@@ -107,8 +150,12 @@ void setup() {
   sei();                      // turn interrupts on after changing their configuration
 
   // initialize LCD
-  lcd.initialize(LCD_PIN_SI, 0, 0, LCD_PIN_RS, 4, 1, DOGM162);
-  lcd.displ_onoff(true);
+  #ifdef LCD_2x16
+    lcd.begin(16,2);
+  #else
+    lcd.initialize(LCD_PIN_SI, 0, 0, LCD_PIN_RS, 4, 1, DOGM162);
+    lcd.displ_onoff(true);
+  #endif
   // initialize UART
   Serial.begin(9600, SERIAL_9O2);
   // Show Startup screen
@@ -124,26 +171,36 @@ void loop() {
     // Extract ASCII text for Jetibox display - 2x 16 characters. If correctl extracted follow-up with buttons an display
     if (simpleTextExtraction() == 0) {
       // Use 20ms pause to send Jetibox buttons status and display text. 
-      printScreen(line1,line2);                   // print lines to display, if full message was received
-      if ((JetiBoxButtons & 0x00F0) != 0x00F0) {  // If buttons pressed, send them
+      if ((JetiBoxButtons & 0x00F0) != 0x00F0) {  
         Serial.write(JetiBoxButtons);             // Send button status if some are pressed (!= 0x00F0).
       }
       else {
-        Serial.write(0x00F0);                     // Send buttons up if not pressed
+        Serial.write(0x00F0);                     // Send buttons up command if not pressed
       }
+      printScreen(line1,line2);                   // print lines to display, if full message was received
     }
   }
 }
 
+// Function to print to lines on the screen
 void printScreen(char *line1, char *line2) {
-  lcd.clear_display();
+#ifdef LCD_2x16
+//  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print(line1);
+  lcd.setCursor(0,1);
+  lcd.print(line2);
+#else
+//  lcd.clear_display();
   lcd.position(1, 1);
   lcd.string(line1);
   lcd.position(1, 2);
   lcd.string(line2);
+#endif
   return;
 }
 
+// Interrupt Service Routine
 // ISR(PCINT1_vect) {}
 // ISR(PCINT2_vect){}
 ISR(PCINT1_vect) {                              // Button up interrupt. They can be pressed simultaneously. Contact swinging is filtered by waiting some ms for the next button press
@@ -154,6 +211,7 @@ ISR(PCINT1_vect) {                              // Button up interrupt. They can
   return;
 }
 
+// Text extraction from simple text protocol
 int simpleTextExtraction () {
   for (int i = 0; i < 32 ; i++) {               // read text message (32 bytes ASCII) and print each one in display 
     while (Serial.available() < 1) {}
