@@ -62,3 +62,7 @@ Board with connected display (inactive):
 Board with connected MVario sensor:
 
 ![Board with display connected](images/JetiBox-Micro%202%20-%20Connected%20MVario.jpg)
+
+Board with connected buttons and TU2-Modul2:
+
+![Board with TU2-Module connected](images/JetiBox-Micro%203%20-%20Connected%20TU2-Module.jpg)
