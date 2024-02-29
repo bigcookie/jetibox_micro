@@ -33,25 +33,30 @@ Display is connected in 4-wire mode to make soldering easier.
 Pin usage:
   Usage.         Atmega Mini Pro 328p board
   -----------------------------------------
+  Push-Buttons:
   Button right:  Pin A0   \
   Button up:     Pin A1    \
   Button down:   Pin A2     | 5-pin connector to buttons
-  Button left:   Pin A3.   /
+  Button left:   Pin A3.   /  
   Button Gnd:    Gnd      /
 
   DOGM162L-A display:
   LCD CS:        Pin 10   \
   LCD CLK:       Pin 13    \
   LCD SI:        Pin 11     \ 6-pin connector to LCD
-  LCD RS:        Pin  8     /
+  LCD RS:        Pin  8     / 
   LCD Gnd:       Gnd       /
   LCD VCC:       Vcc      / 
 
+  Jeti TU2-Module/Sensor:
   Sensor Ground: Gnd      \
   Sensor VCC:    Vcc       | 3-pin connector to TU2-Modul (Servo-connector)
   Sensor TXD:    RXD      /
 
-  HW TXD:        RXD via 2,2kOhm resistor
+                 Gnd      \ optional 2-pin connector to allow to put a 
+                 Res      / reset button on the remote control housing
+
+  TXD:           RXD      connected via 2,2kOhm resistor
 
   Alternative 2x16 display:
   LCD RS:        Pin  7
@@ -63,60 +68,55 @@ Pin usage:
   LCD RW:        Gnd
   LCD VSS:       Gnd
   LCD Vdd:       Vcc
-  LCD  A:        Vcc via 220 Ohm
+  LCD  A:        Vcc via 220 Ohm resistor
   LCD  K:        Gnd
-  LCD V0:        0-5V for contrast
+  LCD V0:        0-5V for contrast (I use about 1V with a voltage divider)
 
 Additional protection resistors can be added between display and Microcontroller. For me system ran stable,
 so I decided to not put them in.
 */
 
 // Display selection
-//#define LCD_2x16     // Enable if you use a standard 2x16 display, otherwise DOGM is being used.
+//#define LCD_2x16                        // Uncomment if you use a standard 2x16 display, otherwise DOGM is being used.
 
-// pin definitions buttons and debounce config values
+// pin buttons and debounce config values
 #define PIN_BUTTON_RIGHT A0
 #define PIN_BUTTON_UP A1
 #define PIN_BUTTON_DOWN A2
 #define PIN_BUTTON_LEFT A3
-#define DEBOUNCE_TIME 20
+#define DEBOUNCE_TIME 20                // in ms
+// pin definitions 2x16 LCD - 4-Bite mode
+#define LCD_PIN_RS 7
+#define LCD_PIN_EN 8
+#define LCD_PIN_D4 10
+#define LCD_PIN_D5 11
+#define LCD_PIN_D6 12
+#define LCD_PIN_D7 13
+// pin definitions DOGM LCD - SPI (use with HW SPI, which is initialized in DOGM library)
+#define LCD_PIN_SI 10
+#define LCD_PIN_RS 8
+
+// ------------------------------
+// DO NOT CHANGE BELOW
+// ------------------------------
+
 // Startup screen configuration
 #define STARTUPSCREEN_SHOW 2000
-// Important protocol bytes to check for
+// Important protocol bytes to check for (see Jeti protocol definition)
 #define SIMPLETEXT_START 0xFE
 #define SIMPLETEXT_END 0xFF
 // Init-Screen Text
 #define INITSCREEN_LINE1 "JetiBox-Micro by"
 #define INITSCREEN_LINE2 "   Andre Kuhn   "
 
-#ifdef LCD_2x16
-// pin definitions 2x16 LCD - 4-Bite mode
-  #define LCD_PIN_RS 7
-  #define LCD_PIN_EN 8
-  #define LCD_PIN_D4 10
-  #define LCD_PIN_D5 11
-  #define LCD_PIN_D6 12
-  #define LCD_PIN_D7 13
-#else
-// pin definitions DOGM LCD - SPI (use with HW SPI, which is initialized in DOGM library)
-  #define LCD_PIN_SI 10
-  #define LCD_PIN_RS 8
-#endif
-
 #include <Arduino.h>
+#include <LiquidCrystal.h>      // need to be installed in Arduino IDE or added to your project folder
+#include "dogm_7036.h"
 
-#ifdef LCD_2x16
-  #include <LiquidCrystal.h>
-#else
-  #include "dogm_7036.h"
-#endif
-
-
-
-// DO NOT CHANGE BELOW
 // global variables to be defined
 volatile uint16_t JetiBoxButtons = 0x00F0;  // Byte to send to sensor/transmitter to navigate through Jetibox menu. Need to be 2 bytes to capture data bit #9 as well
 int lastpressed_buttons = 0;  // required for software debouncing
+
 // initiate the display lines with start screen values
 char line1[17] = INITSCREEN_LINE1;
 char line2[17] = INITSCREEN_LINE2;
@@ -131,7 +131,6 @@ int simpleTextExtraction();
 #else
   dogm_7036 lcd;
 #endif
-
 
 void setup() {
   // configure pins
