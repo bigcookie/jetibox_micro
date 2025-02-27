@@ -216,9 +216,9 @@ ISR(PCINT1_vect) {                              // Button up interrupt. They can
 
 // Interrupt Service Routine for timer
 ISR(TIMER1_COMPA_vect) {
-  const char* l1=INITSCREEN_LINE1;
-  const char* l2=INITSCREEN_LINE2;
-  printScreen(l1,l2);
+  strcpy(line1, INITSCREEN_LINE1);
+  strcpy(line2, INITSCREEN_LINE2);
+  printScreen(line1,line2);
 }
 
 // Text extraction from simple text protocol
