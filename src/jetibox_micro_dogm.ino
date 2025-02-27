@@ -93,8 +93,8 @@ so I decided to not put them in.
 #define LCD_PIN_D6 12
 #define LCD_PIN_D7 13
 // pin definitions DOGM LCD - SPI (use with HW SPI, which is initialized in DOGM library)
-#define LCD_PIN_SI 10
-#define LCD_PIN_RS 8
+#define DOG_LCD_PIN_SI 10
+#define DOG_LCD_PIN_RS 8
 
 // ------------------------------
 // DO NOT CHANGE BELOW
@@ -152,7 +152,7 @@ void setup() {
   #ifdef LCD_2x16
     lcd.begin(16,2);
   #else
-    lcd.initialize(LCD_PIN_SI, 0, 0, LCD_PIN_RS, 4, 1, DOGM162);
+    lcd.initialize(DOG_LCD_PIN_SI, 0, 0, DOG_LCD_PIN_RS, 4, 1, DOGM162);
     lcd.displ_onoff(true);
   #endif
   // initialize UART
