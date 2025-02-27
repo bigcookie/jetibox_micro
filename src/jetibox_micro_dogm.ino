@@ -141,11 +141,18 @@ void setup() {
 
   // configure interrupts 
   cli();                      // turn interrupts off, while changing
+  //configure PORT interrupts
   //  PCICR |= 0b00000001;    // Enable Port B Pin Change Interrupts. Bit0=B - PCINT 0-7, Bit1=C - PCINT 8-14, Bit2=D - PCINT 16-23
   PCICR |= 0b00000010;        // Enable Port C Pin Change Interrupts. Bit0=B - PCINT 0-7, Bit1=C - PCINT 8-14, Bit2=D - PCINT 16-23
   //  PCMSK0 |= 0b00001111;   // Enable pin interrupts: PCINT0  -> Port B
   PCMSK1 |= 0b00001111;       // Enable Pin interrupts: PCINT8-11 -> Port C
   //  PCMSK2 |= 0b10000000;   // PCINT11 -> Port D
+
+  // Configure Timer1 interrupts
+  TCCR1A = 0;                 // Normal operation
+  TCCR1B = (1 << WGM12) | (1 << CS12) | (1 << CS10); // CTC mode, Prescaler 1024
+  OCR1A = 11718;              // 750ms delay (16MHz / 1024 prescaler / 2Hz)  
+  TIMSK1 |= (1 << OCIE1A);    // Enable Timer1 compare interrupt
   sei();                      // turn interrupts on after changing their configuration
 
   // initialize LCD
@@ -171,8 +178,9 @@ void loop() {
     if (simpleTextExtraction() == 0) {
       // Use 2ms pause to send Jetibox buttons status and display text as otherwise Duplex Receiver cannot switch quickly enough to receiving mode after sending Jetibox data
       delay(2);
-      Serial.write(JetiBoxButtons & 0x00F0);             // Send button status if some are pressed (!= 0x00F0).
+      Serial.write(JetiBoxButtons & 0x00F0);      // Send button status if some are pressed (!= 0x00F0).
       printScreen(line1,line2);                   // print lines to display, if full message was received
+      TCNT1 = 0;                                  // Reset timer after receiving valid text
     }
   }
 }
@@ -204,6 +212,13 @@ ISR(PCINT1_vect) {                              // Button up interrupt. They can
     lastpressed_buttons = millis();               // debounce check timestamp setting
   }
   return;
+}
+
+// Interrupt Service Routine for timer
+ISR(TIMER1_COMPA_vect) {
+  const char* l1=INITSCREEN_LINE1;
+  const char* l2=INITSCREEN_LINE2;
+  printScreen(l1,l2);
 }
 
 // Text extraction from simple text protocol
