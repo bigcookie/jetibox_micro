@@ -169,13 +169,9 @@ void loop() {
   if (Serial.read() == SIMPLETEXT_START) {        // check if simple text was sent with EX protocol.
     // Extract ASCII text for Jetibox display - 2x 16 characters. If correctl extracted follow-up with buttons an display
     if (simpleTextExtraction() == 0) {
-      // Use 20ms pause to send Jetibox buttons status and display text. 
-      if ((JetiBoxButtons & 0x00F0) != 0x00F0) {  
-        Serial.write(JetiBoxButtons);             // Send button status if some are pressed (!= 0x00F0).
-      }
-      else {
-        Serial.write(0x00F0);                     // Send buttons up command if not pressed
-      }
+      // Use 2ms pause to send Jetibox buttons status and display text as otherwise Duplex Receiver cannot switch quickly enough to receiving mode after sending Jetibox data
+      delay(2);
+      Serial.write(JetiBoxButtons & 0x00F0);             // Send button status if some are pressed (!= 0x00F0).
       printScreen(line1,line2);                   // print lines to display, if full message was received
     }
   }
@@ -205,8 +201,8 @@ void printScreen(char *line1, char *line2) {
 ISR(PCINT1_vect) {                              // Button up interrupt. They can be pressed simultaneously. Contact swinging is filtered by waiting some ms for the next button press
   if ((millis() - lastpressed_buttons) > DEBOUNCE_TIME) {
     JetiBoxButtons = 0x00F0 & (PINC << 4);      // make sure you dont pick up anything else than the 4 buttons and move the bits to the correct location for Jeti protocol
+    lastpressed_buttons = millis();               // debounce check timestamp setting
   }
-  lastpressed_buttons = millis();               // debounce check timestamp setting
   return;
 }
 
@@ -214,11 +210,12 @@ ISR(PCINT1_vect) {                              // Button up interrupt. They can
 int simpleTextExtraction () {
   for (int i = 0; i < 32 ; i++) {               // read text message (32 bytes ASCII) and print each one in display 
     while (Serial.available() < 1) {}
+    volatile uint8_t protocol_byte = Serial.read() & 0xFF;   // make sure to extract ASCII characters from 9bit protocol and omit 9th bit (& 0xFF)
     if (i<16) {
-      line1[i] = Serial.read() & 0xFF;          // make sure to extract ASCII characters from 9bit protocol and omit 9th bit (& 0xFF). Store in line1 char array
+      line1[i] = protocol_byte;          // Store character 1-16 in line1 char array
     }
     else {
-      line2[i-16] = Serial.read() & 0xFF;       // make sure to extract ASCII characters from 9bit protocol and omit 9th bit (& 0xFF). Store in line2 char array 
+      line2[i-16] = protocol_byte;       // Store character 16-32 in line2 char array 
     }
   }
   while (Serial.available() < 1) {} 
