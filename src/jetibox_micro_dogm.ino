@@ -110,12 +110,13 @@ so I decided to not put them in.
 #define INITSCREEN_LINE2 "   Andre Kuhn   "
 
 #include <Arduino.h>
-#include <LiquidCrystal.h>      // need to be installed in Arduino IDE or added to your project folder
+#include <LiquidCrystal.h>                  // need to be installed in Arduino IDE or added to your project folder
 #include "dogm_7036.h"
 
 // global variables to be defined
 volatile uint16_t JetiBoxButtons = 0x00F0;  // Byte to send to sensor/transmitter to navigate through Jetibox menu. Need to be 2 bytes to capture data bit #9 as well
-int lastpressed_buttons = 0;  // required for software debouncing
+int lastpressed_buttons = 0;                // required for software debouncing
+int data_offset = 0;                        // offset "memory" for text extraction
 
 // initiate the display lines with start screen values
 char line1[17] = INITSCREEN_LINE1;
@@ -172,12 +173,10 @@ void setup() {
 }
 
 void loop() {
-  while (Serial.available() < 1) {}
-  if (Serial.read() == SIMPLETEXT_START) {        // check if simple text was sent with EX protocol.
-    // Extract ASCII text for Jetibox display - 2x 16 characters. If correctl extracted follow-up with buttons an display
-    if (simpleTextExtraction() == 0) {
-      // Use 2ms pause to send Jetibox buttons status and display text as otherwise Duplex Receiver cannot switch quickly enough to receiving mode after sending Jetibox data
-      delay(2);
+  while (Serial.available()) {
+    char c = Serial.read();
+    if (text_encode(c)) {                         // extract character and check if text complete
+      delay(2);                                   // delay by 2ms to support REX receivers slow serial mode switching
       Serial.write(JetiBoxButtons & 0x00F0);      // Send button status if some are pressed (!= 0x00F0).
       printScreen(line1,line2);                   // print lines to display, if full message was received
       TCNT1 = 0;                                  // Reset timer after receiving valid text
@@ -206,9 +205,9 @@ void printScreen(char *line1, char *line2) {
 // Interrupt Service Routine
 // ISR(PCINT1_vect) {}
 // ISR(PCINT2_vect){}
-ISR(PCINT1_vect) {                              // Button up interrupt. They can be pressed simultaneously. Contact swinging is filtered by waiting some ms for the next button press
+ISR(PCINT1_vect) {                                // Button up interrupt. They can be pressed simultaneously. Contact swinging is filtered by waiting some ms for the next button press
   if ((millis() - lastpressed_buttons) > DEBOUNCE_TIME) {
-    JetiBoxButtons = 0x00F0 & (PINC << 4);      // make sure you dont pick up anything else than the 4 buttons and move the bits to the correct location for Jeti protocol
+    JetiBoxButtons = 0x00F0 & (PINC << 4);        // make sure you dont pick up anything else than the 4 buttons and move the bits to the correct location for Jeti protocol
     lastpressed_buttons = millis();               // debounce check timestamp setting
   }
   return;
@@ -222,22 +221,26 @@ ISR(TIMER1_COMPA_vect) {
 }
 
 // Text extraction from simple text protocol
-int simpleTextExtraction () {
-  for (int i = 0; i < 32 ; i++) {               // read text message (32 bytes ASCII) and print each one in display 
-    while (Serial.available() < 1) {}
-    volatile uint8_t protocol_byte = Serial.read() & 0xFF;   // make sure to extract ASCII characters from 9bit protocol and omit 9th bit (& 0xFF)
-    if (i<16) {
-      line1[i] = protocol_byte;          // Store character 1-16 in line1 char array
-    }
-    else {
-      line2[i-16] = protocol_byte;       // Store character 16-32 in line2 char array 
-    }
+bool text_encode(unsigned char chr) {            // Returns true only, if 32 characters of text have been found prior to receiving the simple text message end byte
+  switch(chr) {                                  // set return values for start and end bit of simple text message. Is true, when end bit and received 32 characters have been detected
+    case SIMPLETEXT_START:
+      data_offset = 0;
+      return false;
+    case SIMPLETEXT_END:
+      if (data_offset == 32) {
+        return true;
+      } else {
+        return false;
+      }
   }
-  while (Serial.available() < 1) {} 
-  if (Serial.read() != SIMPLETEXT_END) {        // if nok and end byte (0xFF) is missing, remove strings (string length = 0)
-    return 1;                                   // return 1 if nok
+
+  if (data_offset < 16) {
+      line1[data_offset] = chr;
+      data_offset++;
   }
-  else {
-    return 0;                                   // return 0 if ok
+  else if (data_offset < 32) {
+      line2[data_offset-16] = chr;
+      data_offset++;
   }
+  return false;
 }
